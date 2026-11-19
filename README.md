@@ -1,6 +1,9 @@
 # EPC QR Code Offline Generator
 
-Static, offline-capable EPC/SEPA payment QR generator. Deployed as Vercel project **`epc-qr`**.
+## Vibe Coded Slop - Use at your own risk.
+
+Static, offline-capable EPC/SEPA payment QR generator. 
+Deployed as Vercel project **`epc-qr`**.
 
 A lightweight, fully offline EPC/SEPA QR code generator. Open `index.html` in a modern browser, fill in the payment details, and generate the QR code locally in your browser. No server calls; everything runs offline.
 
