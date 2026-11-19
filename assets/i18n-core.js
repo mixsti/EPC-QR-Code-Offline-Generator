@@ -64,7 +64,7 @@ window.I18N = {
 
     placeholders: {
       name: "e.g., Example GmbH",
-      iban: "DE89 3704 0044 0532 0130 00",
+      iban: "DE87 1234 5678 1234 5678 90",
       amount: "12.34",
       unstruct: "Invoice 4711, Customer 123",
       struct: "e.g., RF18XXXX",
@@ -74,7 +74,7 @@ window.I18N = {
     },
     exdata: {
       name: "Example GmbH",
-      iban: "DE71 1102 2033 0123 4567 89",
+      iban: "DE87 1234 5678 1234 5678 90",
       amount: "12.30",
       unstruct: "Invoice 4711",
       struct: "",
