@@ -7,15 +7,6 @@ Deployed as Vercel project **`epc-qr`**.
 
 A lightweight, fully offline EPC/SEPA QR code generator. Open `index.html` in a modern browser, fill in the payment details, and generate the QR code locally in your browser. No server calls; everything runs offline.
 
-## Screenshots
-Advanced section collapsed:
-
-![Advanced collapsed](docs/screenshots/advanced-collapsed.png)
-
-Advanced section expanded:
-
-![Advanced expanded](docs/screenshots/advanced-expanded.png)
-
 ## Features
 - Offline only: no network requests; all scripts are local
 - IBAN validation: live check and readable spacing
