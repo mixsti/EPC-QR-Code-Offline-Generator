@@ -41,16 +41,19 @@ function ensureI18N(){
       saved_no_matches:"No saved references match the search.",
       saved_hint:"Saved locally in this browser only.", btn_save_new_reference:"Save as new",
       btn_duplicate_reference:"Duplicate selected", btn_update_reference:"Update selected", btn_delete_reference:"Delete selected",
+      btn_export_references:"Export JSON", btn_import_references:"Import JSON",
       copy_word:"copy",
       status_reference_loaded:'Loaded saved reference "{label}".', status_reference_saved:'Saved reference "{label}".',
       status_reference_duplicated:'Duplicated saved reference as "{label}".',
       status_reference_updated:'Updated saved reference "{label}".', status_reference_deleted:'Deleted saved reference "{label}".',
+      status_references_exported:'Exported {count} saved reference(s).', status_references_imported:'Imported {count} saved reference(s).',
       err_reference_empty:"Enter payment details before saving a reference.",
       err_reference_name:"Please enter a name to save this payment under.",
       err_reference_exists:"A saved reference with this name already exists. Use Update selected or choose another name.",
       err_reference_select:"Select a saved reference first.",
       err_reference_storage:"Could not access local storage in this browser.",
       err_reference_missing:"The selected saved reference could not be found.",
+      err_import_file:"Please select a JSON file.", err_import_json:"The selected file does not contain valid saved payment references.",
       confirm_reference_overwrite:'A saved reference named "{label}" already exists. Overwrite it?',
       confirm_reference_delete:'Delete saved reference "{label}"?',
       theme_dark:"Dark", theme_light:"Light",
@@ -59,8 +62,8 @@ function ensureI18N(){
       tooltip_struct:"Use RF creditor reference (ISO 11649). If you set this, leave Payment reference empty.",
       tooltip_purpose:"Standard code like GDDS (goods), SALA (salary), CHAR (charity). Optional.",
       totalBytes:"Total bytes:", qrInfo:"QR info:", details:"Show details (EPC payload)", lf:"Line breaks are shown as \\n.",
-      placeholders:{ name:"e.g., Example GmbH", iban:"DE87 1234 5678 1234 5678 90", amount:"12.34", unstruct:"Invoice 4711, Customer 123", struct:"e.g., RF18XXXX", purpose:"e.g., GDDS", bic:"usually empty in EU", b2o:"optional" },
-      exdata:{ name:"Example GmbH", iban:"DE87 1234 5678 1234 5678 90", amount:"12.30", unstruct:"Invoice 4711", struct:"", purpose:"", bic:"", b2o:"" },
+      placeholders:{ name:"e.g., Example GmbH", iban:"DE89 3704 0044 0532 0130 00", amount:"12.34", unstruct:"Invoice 4711, Customer 123", struct:"e.g., RF18XXXX", purpose:"e.g., GDDS", bic:"usually empty in EU", b2o:"optional" },
+      exdata:{ name:"Example GmbH", iban:"DE71 1102 2033 0123 4567 89", amount:"12.30", unstruct:"Invoice 4711", struct:"", purpose:"", bic:"", b2o:"" },
       status_ok:"QR code created. Scan with your banking app.", status_prefill:"Example data filled. Click 'Generate QR code'.",
       err_name:"Recipient is required.", err_iban:"IBAN is invalid.", err_purpose:"Purpose code must be 1-4 alphanumeric characters.", err_bic:"Invalid BIC format.", err_amount_min:"Invalid amount: at least 0.01 EUR.",
       err_len:(b)=>`Text too long: payload exceeds 331 bytes (${b}). Please shorten.`, err_qrlib:"QR library not loaded. Ensure assets/qrcode.min.js exists and is loaded before app.js.",
@@ -147,6 +150,8 @@ function applyLang(lang){
   document.getElementById("duplicateReference").textContent = tx('btn_duplicate_reference', 'Duplicate selected');
   document.getElementById("updateSelectedReference").textContent = tx('btn_update_reference', 'Update selected');
   document.getElementById("deleteReference").textContent = tx('btn_delete_reference', 'Delete selected');
+  document.getElementById("exportReferences").textContent = tx('btn_export_references', 'Export JSON');
+  document.getElementById("importReferences").textContent = tx('btn_import_references', 'Import JSON');
 
   // Meta labels
   document.getElementById("t_totalBytes").innerHTML = "<strong>"+dict.totalBytes+"</strong>";
@@ -340,9 +345,11 @@ function updateSavedPaymentButtons(){
   const duplicateBtn = document.getElementById('duplicateReference');
   const updateBtn = document.getElementById('updateSelectedReference');
   const deleteBtn = document.getElementById('deleteReference');
+  const exportBtn = document.getElementById('exportReferences');
   if (duplicateBtn) duplicateBtn.disabled = !hasSelection;
   if (updateBtn) updateBtn.disabled = !hasSelection;
   if (deleteBtn) deleteBtn.disabled = !hasSelection;
+  if (exportBtn) exportBtn.disabled = !hasSelection;
 }
 function renderSavedPayments(selectedId = ''){
   const select = document.getElementById('savedPaymentSelect');
@@ -703,6 +710,112 @@ function deleteSelectedReference(){
   setSavedPaymentName('');
   setStatus(formatText(tx('status_reference_deleted', 'Deleted saved reference "{label}".'), { label: item.label }), true);
 }
+function safeFilenamePart(value){
+  return String(value || 'reference')
+    .trim()
+    .replace(/[^a-z0-9._-]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60) || 'reference';
+}
+function getSelectedSavedPayment(){
+  const select = document.getElementById('savedPaymentSelect');
+  if (!select || !select.value) return null;
+  return loadSavedPayments().find(entry => entry.id === select.value) || null;
+}
+function buildSavedPaymentExport(item){
+  return {
+    app: 'EPC QR Code Offline Generator',
+    schema: SAVED_PAYMENTS_STORAGE_KEY,
+    exportedAt: new Date().toISOString(),
+    savedPayment: item
+  };
+}
+function downloadJson(payload, filename){
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function exportSavedPayments(){
+  const item = getSelectedSavedPayment();
+  if (!item) {
+    setStatus(tx('err_reference_select', 'Select a saved reference first.'), false);
+    updateSavedPaymentButtons();
+    return;
+  }
+
+  const payload = buildSavedPaymentExport(item);
+  const date = new Date().toISOString().slice(0, 10);
+  downloadJson(payload, `epc-qr-${safeFilenamePart(item.label)}-${date}.json`);
+  setStatus(formatText(tx('status_references_exported', 'Exported {count} saved reference(s).'), { count: 1 }), true);
+}
+function parseSavedPaymentsImport(data){
+  let rawItems = null;
+  if (Array.isArray(data)) rawItems = data;
+  else if (Array.isArray(data?.savedPayments)) rawItems = data.savedPayments;
+  else if (Array.isArray(data?.items)) rawItems = data.items;
+  else if (data?.savedPayment && typeof data.savedPayment === 'object') rawItems = [data.savedPayment];
+  else if (data?.label && data?.values && typeof data.values === 'object') rawItems = [data];
+  if (!rawItems) return [];
+
+  const seen = new Set();
+  return rawItems
+    .map(normalizeSavedPaymentEntry)
+    .filter(Boolean)
+    .filter((item) => {
+      const key = `${item.id}\n${item.label.toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, SAVED_PAYMENTS_LIMIT);
+}
+function mergeSavedPayments(existingItems, importedItems){
+  const next = existingItems.slice();
+  for (const imported of importedItems) {
+    const idIndex = next.findIndex(item => item.id === imported.id);
+    const labelIndex = next.findIndex(item => item.label.toLowerCase() === imported.label.toLowerCase());
+    const replaceIndex = idIndex >= 0 ? idIndex : labelIndex;
+    if (replaceIndex >= 0) next[replaceIndex] = imported;
+    else next.push(imported);
+  }
+  return next.slice(0, SAVED_PAYMENTS_LIMIT);
+}
+async function importSavedPaymentsFromFile(event){
+  const input = event?.target;
+  const file = input?.files?.[0];
+  if (input) input.value = '';
+  if (!file) return;
+
+  if (file.name && !file.name.toLowerCase().endsWith('.json')) {
+    setStatus(tx('err_import_file', 'Please select a JSON file.'), false);
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(await file.text());
+    const importedItems = parseSavedPaymentsImport(parsed);
+    if (!importedItems.length) throw new Error(tx('err_import_json', 'The selected file does not contain valid saved payment references.'));
+
+    const firstImported = importedItems[0];
+    const mergedItems = mergeSavedPayments(loadSavedPayments(), importedItems);
+    if (!persistSavedPayments(mergedItems)) return;
+
+    ensureSavedPaymentVisible(firstImported);
+    renderSavedPayments(firstImported.id);
+    setSavedPaymentName(firstImported.label);
+    applyFormValues(firstImported.values || {});
+    setStatus(formatText(tx('status_references_imported', 'Imported {count} saved reference(s).'), { count: importedItems.length }), true);
+  } catch (err) {
+    setStatus(err.message || tx('err_import_json', 'The selected file does not contain valid saved payment references.'), false);
+  }
+}
 
 // IBAN auto spacing with caret preservation
 function formatIbanUIKeepCaret(inputEl){
@@ -908,11 +1021,7 @@ document.getElementById('gen').addEventListener('click', ()=>{
     if(!v.name.trim()) throw new Error(dict.err_name);
     if(!ibanIsValid(v.iban)) throw new Error(dict.err_iban);
     if(v.purpose && !/^[A-Za-z0-9]{1,4}$/.test(v.purpose)) throw new Error(dict.err_purpose);
-    // Enforce uppercase BIC before validate (input handler also uppercases while typing)
-    if (v.bic) {
-      v.bic = v.bic.trim().toUpperCase();
-      document.getElementById('bic').value = v.bic;
-    }
+    // Enforce uppercase BIC: convert in UI; validate uppercase pattern here
     if(v.bic && !/^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(v.bic)) throw new Error(dict.err_bic);
 
     const payload = buildPayload(v);
@@ -935,6 +1044,9 @@ document.getElementById('saveNewReference').addEventListener('click', saveNewRef
 document.getElementById('duplicateReference').addEventListener('click', duplicateSelectedReference);
 document.getElementById('updateSelectedReference').addEventListener('click', updateSelectedReference);
 document.getElementById('deleteReference').addEventListener('click', deleteSelectedReference);
+document.getElementById('exportReferences').addEventListener('click', exportSavedPayments);
+document.getElementById('importReferences').addEventListener('click', ()=> document.getElementById('importReferencesFile').click());
+document.getElementById('importReferencesFile').addEventListener('change', importSavedPaymentsFromFile);
 
 // Example data
 document.getElementById('ex').addEventListener('click', ()=>{

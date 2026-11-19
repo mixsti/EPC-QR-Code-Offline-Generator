@@ -95,6 +95,9 @@
           <button type="button" id="duplicateReference" disabled>Duplicate selected</button>
           <button type="button" id="updateSelectedReference" disabled>Update selected</button>
           <button type="button" id="deleteReference" disabled>Delete selected</button>
+          <button type="button" id="exportReferences" disabled>Export JSON</button>
+          <button type="button" id="importReferences">Import JSON</button>
+          <input type="file" id="importReferencesFile" accept="application/json,.json" hidden />
         </div>
         <div class="saved-grid">
           <label id="l_savedPaymentSearch">
@@ -127,7 +130,7 @@
 
         <label id="l_iban">
           <div class="label-row"><span class="title">IBAN</span></div>
-          <input id="iban" maxlength="42" placeholder="DE87 1234 5678 1234 5678 90"
+          <input id="iban" maxlength="34" placeholder="DE89 3704 0044 0532 0130 00"
                  pattern="^[A-Z]{2}[0-9]{2}[A-Z0-9 ]{0,30}$" title="Starts with country code + 2 digits; letters/digits, spaces allowed"
                  autocapitalize="characters" inputmode="text" aria-describedby="ibanHint" />
           <span class="hint" id="ibanHint"></span>
@@ -237,8 +240,8 @@
   </div>
 
   <!-- Load order: QR lib -> i18n core (EN) -> app logic -->
-  <script src="./assets/qrcode.min.js"></script>
-  <script src="./assets/i18n-core.js"></script>
-  <script src="./assets/app.js"></script>
+  <script src="./assets/qrcode.min.js?v=20260519"></script>
+  <script src="./assets/i18n-core.js?v=20260519"></script>
+  <script src="./assets/app.js?v=20260519"></script>
 </body>
 </html>
